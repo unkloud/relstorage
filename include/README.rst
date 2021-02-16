@@ -31,3 +31,8 @@ A one liner to update from a boost distribution unpacked beside this
 boost/ directory::
 
     for i in  `find . -type f`; do gcp -f ../boost_1_75_0/boost/${i:2} $i; done
+
+The "interprocess" directory was copied in its entirety, even though,
+at this writing, we only use part of it.
+
+Add -DBOOST_INTERPROCESS_WINDOWS to find missing headers.

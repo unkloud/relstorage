@@ -75,6 +75,12 @@ typedef unsigned int uint32_t;
 #include <boost/intrusive/list.hpp>
 #include <boost/intrusive/set.hpp>
 
+#include <boost/interprocess/shared_memory_object.hpp>
+#include <boost/interprocess/mapped_region.hpp>
+#include <boost/interprocess/managed_shared_memory.hpp>
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/interprocess/sync/scoped_lock.hpp>
+
 /*
  * No version of MSVC properly supports inline. Sigh.
  */

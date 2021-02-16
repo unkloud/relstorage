@@ -155,10 +155,24 @@ setup(
                     'src/relstorage/cache/c_cache.cpp',
                 ],
                 include_dirs=['include'],
+                define_macros=[
+                    # From https://www.boost.org/doc/libs/1_75_0/doc/html/interprocess.html
+                    #   #interprocess.intro.introduction_building_interprocess
+                    #
+                    # Boost.Interprocess depends on Boost.DateTime,
+                    # which needs separate compilation. However, the
+                    # subset used by Boost.Interprocess does not need
+                    # any separate compilation so the user can define
+                    # BOOST_DATE_TIME_NO_LIB to avoid Boost from
+                    # trying to automatically link the Boost.DateTime.
+                    ('BOOST_DATE_TIME_NO_LIB', '1'),
+                ],
                 # https://docs.microsoft.com/en-us/cpp/build/reference/eh-exception-handling-model
                 # /EHsc: `s`: enable stack unwinding, catch C++ exceptions in catch(...)
                 #        `c`: extern C functions never throw C++ exceptions.
-                # XXX: Why this flag or Python 2/Windows? /EHa (catch SEH and standard) seems better.
+                #
+                # XXX: Why this flag or Python 2/Windows? /EHa (catch
+                # SEH and standard) seems better.
                 extra_compile_args=["/EHsc"] if WINDOWS and PY2 else [],
             ),
 
