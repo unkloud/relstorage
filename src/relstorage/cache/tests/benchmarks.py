@@ -16,6 +16,7 @@ from __future__ import division
 from __future__ import print_function
 
 # pylint:disable=unused-argument
+# pylint:disable=too-many-lines
 import os
 import os.path
 import random
@@ -365,9 +366,9 @@ def local_benchmark(runner):
         # print("Probation demotes", client._bucket0._probation.demote_count)
         # print("Probation removes", client._bucket0._probation.remove_count)
 
-    def _do_contended(loops, func):
+    def _do_contended(loops, func, div=False, thread_count=5):
         import threading
-        THREAD_COUNT = 5
+
 
         client = makeOne(populate=True)
         key_groups = _make_key_groups(KEY_GROUP_SIZE)
@@ -377,7 +378,7 @@ def local_benchmark(runner):
             def run(self):
                 self.duration = func(loops, (client, key_groups))
 
-        threads = [Thread() for _ in range(THREAD_COUNT)]
+        threads = [Thread() for _ in range(thread_count)]
         for t in threads:
             t.start()
         for t in threads:
@@ -385,7 +386,8 @@ def local_benchmark(runner):
 
         # This means the number isn't directly comparable to `read`,
         # but gets better stddev?
-        return sum(t.duration for t in threads)
+        duration = sum(t.duration for t in threads)
+        return duration / thread_count if div else duration
 
     def read_contended(loops):
         return _do_contended(loops, read)
@@ -438,6 +440,75 @@ def local_benchmark(runner):
     def mixed_contended(loops):
         return _do_contended(loops, mixed)
 
+    def _test_lock_nogil(loops, client_and_keys=None):
+        if client_and_keys is None:
+            client = makeOne(populate=True)
+        else:
+            client, _ = client_and_keys
+
+        cache = client._cache
+        duration = 0
+        for _ in range(loops):
+            begin = perf_counter()
+            for _ in range(10000):
+                cache.test_lock_nogil()
+            duration += perf_counter() - begin
+        return duration
+
+    def _test_lock_gil(loops, client_and_keys=None):
+        if client_and_keys is None:
+            client = makeOne(populate=True)
+        else:
+            client, _ = client_and_keys
+
+        cache = client._cache
+        duration = 0
+        for _ in range(loops):
+            begin = perf_counter()
+            for _ in range(10000):
+                cache.test_lock_gil()
+            duration += perf_counter() - begin
+        return duration
+
+
+    def lock_nogil_cont(loops):
+        return _do_contended(loops, _test_lock_nogil, True)
+
+    def lock_gil_cont(loops):
+        return _do_contended(loops, _test_lock_gil, True)
+
+    def lock_nogil_cont4(loops):
+        return _do_contended(loops, _test_lock_nogil, True, 4)
+
+    def lock_gil_cont4(loops):
+        return _do_contended(loops, _test_lock_gil, True, 4)
+
+    def lock_nogil_cont3(loops):
+        return _do_contended(loops, _test_lock_nogil, True, 3)
+
+    def lock_gil_cont3(loops):
+        return _do_contended(loops, _test_lock_gil, True, 3)
+
+    def lock_nogil_cont2(loops):
+        return _do_contended(loops, _test_lock_nogil, True, 2)
+
+    def lock_gil_cont2(loops):
+        return _do_contended(loops, _test_lock_gil, True, 2)
+
+
+    def lock_nogil(loops):
+        # Be sure we actually have a real GIL by spawning a thread.
+        import threading
+        t = threading.Thread(target=lambda: 42)
+        t.start()
+        t.join()
+
+        return _test_lock_nogil(loops)
+
+    def lock_gil(loops):
+        return _test_lock_gil(loops)
+
+
     # def mixed_for_stats():
     #     # This is a trivial function that simulates the way
     #     # new keys can come in over time as we reset our checkpoints.
@@ -460,14 +531,29 @@ def local_benchmark(runner):
         benchmarks = run_and_report_funcs(
             runner,
             (
-                (name + ' mix_cont ', mixed_contended),
-                (name + ' read_cont', read_contended),
-                (name + ' pop_bulk', populate_bulk),
-                (name + ' pop_eq', populate_equal),
-                (name + ' pop_ne', populate_not_equal),
-                (name + ' epop', populate_empty),
-                (name + ' read', read),
-                (name + ' mix ', mixed),
+                (name + ' lock_nogil', lock_nogil),
+                (name + ' lock_gil', lock_gil),
+                (name + ' lock_nogil_cont5', lock_nogil_cont),
+                (name + ' lock_gil_cont5', lock_gil_cont),
+
+                (name + ' lock_nogil_cont4', lock_nogil_cont4),
+                (name + ' lock_gil_cont4', lock_gil_cont4),
+
+                (name + ' lock_nogil_cont3', lock_nogil_cont3),
+                (name + ' lock_gil_cont3', lock_gil_cont3),
+
+                (name + ' lock_nogil_cont2', lock_nogil_cont2),
+                (name + ' lock_gil_cont2', lock_gil_cont2),
+
+
+                # (name + ' mix_cont ', mixed_contended),
+                # (name + ' read_cont', read_contended),
+                # (name + ' pop_bulk', populate_bulk),
+                # (name + ' pop_eq', populate_equal),
+                # (name + ' pop_ne', populate_not_equal),
+                # (name + ' epop', populate_empty),
+                # (name + ' read', read),
+                # (name + ' mix ', mixed),
 
             ))
         group = {

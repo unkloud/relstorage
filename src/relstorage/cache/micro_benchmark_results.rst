@@ -473,3 +473,46 @@ parallelism::
   read_cont: Mean +- std dev:  2000   ms +- 0.14 sec
   mix      : Mean +- std dev:   370   ms +- 31 ms
   mix_cont : Mean +- std dev: 70700   ms +- 1.7 sec
+
+Just benchmarking taking the lock (whether recursive or not made no
+difference), it looks like it's releasing/acquiring the GIL that hurts
+us. Here, the 'gil' benchmarks don't actually get any concurrency
+(even in the 'cont' -> contested case, where we use threads; the other
+cases are single threaded) because the GIL is held for the entire
+duration of the call into Cython -> C++; the nogil versions, on the
+other hand, get concurrency by releasing the GIL when calling into
+C++. But acquiring the lock, even when contended...is faster than
+dropping/releasing the GIL? ::
+
+  lock_nogil     : Mean +- std dev:   1240 us +- 0.03 ms
+  lock_gil       : Mean +- std dev:    578 us +- 14 us
+
+  lock_nogil_cont: Mean +- std dev: 225000 us +- 4 ms
+  lock_gil_cont  : Mean +- std dev:   2030 ms +- 0.22 ms
+
+The single threaded nogil case is 2.2x slower than the gil case. So
+that gives us a basic overhead.
+
+The multi-threaded case (5 threads) is 110x slower.
+
+Here's two threads::
+
+  lock_nogil     : Mean +- std dev: 1260 us +- 0.05 ms
+  lock_gil       : Mean +- std dev:  586 us +- 19 us
+  lock_nogil_cont: Mean +- std dev: 9700 us +- 0.79 ms
+  lock_gil_cont  : Mean +- std dev: 1130 us +- 0.07 ms
+
+Same ratio for single threaded. For multi-threaded, it's 8.5x.
+
+Three threads goes to 44x, and four goes to 67x.
+
+Python 2.7 does better, but Python 3.9 is basically the same in both
+ratio and absolute times as 3.8::
+
+     Ratio     Python 3.8   Python 2.7                Python 3.9
+     Threads
+         1           2.2         1.5 (1.39ms/.892ms)      2.07
+         2           8.5         4.6 (11.1ms/2.4ms)       9.27
+         3          44          14   (55.7ms/4.0ms)      41
+         4          67          19   (110ms/5.5ms)       67
+         5         110          29   (193ms/6.6ms)      108

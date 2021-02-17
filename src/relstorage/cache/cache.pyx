@@ -550,6 +550,14 @@ cdef class PyCache:
             result = self.cache.weight()
         return result
 
+    def test_lock_nogil(self):
+        with nogil:
+            self.cache.test_non_recur_lock()
+
+    def test_lock_gil(self):
+        self.cache.test_non_recur_lock()
+
+
 # Local Variables:
 # flycheck-cython-cplus: t
 # End:
