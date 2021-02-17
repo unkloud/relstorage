@@ -443,3 +443,33 @@ results in these timings::
   epop    : Mean +- std dev: 171    ms +- 3 ms
   read    : Mean +- std dev:   9.88 ms +- 0.28 ms
   mix     : Mean +- std dev: 340    ms +- 12 ms
+
+Contended Results
+-----------------
+
+Before any modifications, but after the addition of the contended
+tests for 'read' and mix::
+
+  pop_bulk : Mean +- std dev:   43.7  ms +- 0.9 ms
+  pop_eq   : Mean +- std dev:  183    ms +- 6 ms
+  pop_ne   : Mean +- std dev:  357    ms +- 27 ms
+  epop     : Mean +- std dev:  163    ms +- 5 ms
+  read     : Mean +- std dev:    9.43 ms +- 0.18 ms
+  read_cont: Mean +- std dev:  198    ms +- 17 ms
+  mix      : Mean +- std dev:  326    ms +- 20 ms
+  mix_cont : Mean +- std dev: 8620    ms +- 0.20 sec
+
+With the ``interprocess_recursive_mutex``, as above, and some fairly
+fine-grained ``nogil`` statements directly around calls to the cache,
+the read and mixed contended tests are about 10x worse; the good news,
+though, is that the CPU usage actually went to 200% indicating actuall
+parallelism::
+
+  pop_bulk : Mean +- std dev:    47.3 ms +- 1.5 ms
+  pop_eq   : Mean +- std dev:   202   ms +- 2 ms
+  pop_ne   : Mean +- std dev:   362   ms +- 8 ms
+  epop     : Mean +- std dev:   172   ms +- 2 ms
+  read     : Mean +- std dev:    10.8 ms +- 0.5 ms
+  read_cont: Mean +- std dev:  2000   ms +- 0.14 sec
+  mix      : Mean +- std dev:   370   ms +- 31 ms
+  mix_cont : Mean +- std dev: 70700   ms +- 1.7 sec

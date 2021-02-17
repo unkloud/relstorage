@@ -460,6 +460,9 @@ PythonAllocator<ICacheEntry> Cache::deallocator;
 
 void Cache::add_to_eden(const ProposedCacheEntry& proposed)
 {
+    // TODO: Need to move most of the callers of this into here, so it
+    // can be protected by our lock; it's possible to be inconsistent
+    // across processes.
     BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
 
     if (unlikely(this->data.count(proposed.oid()))) {

@@ -422,6 +422,8 @@ namespace cache {
         template <typename T>
         RSR_INLINE const T* Py_use() const
         {
+            // XXX: This needs the mutex if we're not copying.
+            // If we are copying, this needs to go away.
             ++this->py_ob_refcount;
             return dynamic_cast<const T*>(this);
         }
@@ -1270,6 +1272,7 @@ namespace cache {
          * Add a new entry for the given state if one does not already exist.
          * It becomes the first entry in eden. If this causes the cache to be oversized,
          * entries are freed.
+         *
          */
         void add_to_eden(const ProposedCacheEntry& proposed);
 

@@ -91,21 +91,21 @@ cdef extern from "c_cache.h" namespace "relstorage::cache":
         Cache()
         Cache(size_t eden, size_t protected, size_t probation) except +
         void __del__() except +
-        void resize(size_t, size_t, size_t)
-        size_t max_weight()
-        void add_to_eden(ProposedCacheEntry) except +
-        void store_and_make_MRU(ProposedCacheEntry) except +
-        void delitem(OID_t key) except +
-        void delitem(OID_t key, TID_t tid) except +
-        void freeze(OID_t key, TID_t tid) except +
-        bool contains(OID_t key)
-        void age_frequencies()
-        ICacheEntry* get(OID_t key)
-        SVCacheEntry* get(OID_t, TID_t)
-        SVCacheEntry* peek(OID_t, TID_t)
-        size_t size()
-        size_t weight()
-        vector[OID_t] add_many(TempCacheFiller&) except +
+        void resize(size_t, size_t, size_t) nogil
+        size_t max_weight() nogil
+        void add_to_eden(ProposedCacheEntry) nogil except +
+        void store_and_make_MRU(ProposedCacheEntry) nogil except +
+        void delitem(OID_t key) nogil except +
+        void delitem(OID_t key, TID_t tid) nogil except +
+        void freeze(OID_t key, TID_t tid) nogil except +
+        bool contains(OID_t key) nogil
+        void age_frequencies() nogil
+        ICacheEntry* get(OID_t key) nogil
+        SVCacheEntry* get(OID_t, TID_t) nogil
+        SVCacheEntry* peek(OID_t, TID_t) nogil
+        size_t size() nogil
+        size_t weight() nogil
+        vector[OID_t] add_many(TempCacheFiller&) nogil except +
 
         iterator begin()
         iterator end()

@@ -391,6 +391,8 @@ def local_benchmark(runner):
         return _do_contended(loops, read)
 
     def mixed(loops, client_and_keys=None):
+        from relstorage.cache.interfaces import CacheConsistencyError
+
         if client_and_keys is None:
             key_groups = _make_key_groups(KEY_GROUP_SIZE)
             client = makeOne(populate=True)
@@ -410,7 +412,16 @@ def local_benchmark(runner):
             for oid, (state, tid) in all_data:
                 i += 1
                 key = (oid, tid)
-                client[key] = (state, tid)
+                try:
+                    client[key] = (state, tid)
+                except CacheConsistencyError:
+                    # If we're running concurrently, we could
+                    # get duplicate entries since this can drop the GIL.
+                    # Ignore that for now, this should be fixed in the lower
+                    # levels of the cache.
+                    if client_and_keys is None:
+                        raise
+
                 if i == len(hot_keys):
                     for hot_oid in hot_keys:
                         hot_key = (hot_oid, hot_oid)
@@ -449,14 +460,15 @@ def local_benchmark(runner):
         benchmarks = run_and_report_funcs(
             runner,
             (
+                (name + ' mix_cont ', mixed_contended),
+                (name + ' read_cont', read_contended),
                 (name + ' pop_bulk', populate_bulk),
                 (name + ' pop_eq', populate_equal),
                 (name + ' pop_ne', populate_not_equal),
                 (name + ' epop', populate_empty),
                 (name + ' read', read),
-                (name + ' read_cont', read_contended),
                 (name + ' mix ', mixed),
-                (name + ' mix_cont ', mixed_contended),
+
             ))
         group = {
             k[len(name) + 1:]: v for k, v in benchmarks.items()
