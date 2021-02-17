@@ -460,6 +460,8 @@ PythonAllocator<ICacheEntry> Cache::deallocator;
 
 void Cache::add_to_eden(const ProposedCacheEntry& proposed)
 {
+    BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
+
     if (unlikely(this->data.count(proposed.oid()))) {
         throw std::runtime_error("Key already present");
     }
@@ -471,6 +473,8 @@ void Cache::add_to_eden(const ProposedCacheEntry& proposed)
 
 OidList Cache::add_many(TempCacheFiller& temp_filler)
 {
+    BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
+
     OidList added;
 
     if (this->oversize() || temp_filler.entries.empty()) {
@@ -556,6 +560,8 @@ OidList Cache::add_many(TempCacheFiller& temp_filler)
 
 void Cache::store_and_make_MRU(const ProposedCacheEntry& proposed)
 {
+    BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
+
     if_existing(proposed.oid(), );
 
     ICacheEntry* new_entry = existing_entry.adding_value(proposed);
@@ -570,6 +576,8 @@ void Cache::store_and_make_MRU(const ProposedCacheEntry& proposed)
  */
 void Cache::delitem(OID_t key)
 {
+    BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
+
     if_existing(key,)
 
     assert(existing_entry.generation());
@@ -593,6 +601,8 @@ static void maybe_delete_existing_entry(ICacheEntry* new_entry,
 
 void Cache::delitem(OID_t key, TID_t tid)
 {
+    BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
+
     if_existing(key,);
 
     ICacheEntry* new_entry = existing_entry.discarding_tids_before(tid);
@@ -601,6 +611,8 @@ void Cache::delitem(OID_t key, TID_t tid)
 
 void Cache::freeze(OID_t key, TID_t tid)
 {
+    BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
+
     if_existing(key,);
 
     ICacheEntry* new_entry = existing_entry.freeze_to_tid(tid);
@@ -609,11 +621,16 @@ void Cache::freeze(OID_t key, TID_t tid)
 
 bool Cache::contains(const OID_t key) const
 {
+    BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(
+        const_cast<Cache*>(this)->mutex);
+
     return this->data.count(key) == 1;
 }
 
 ICacheEntry* Cache::get(const OID_t key)
 {
+    BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
+
     if_existing(key, nullptr);
     return &existing_entry;
 }
@@ -629,16 +646,21 @@ SVCacheEntry* Cache::_get_or_peek(const OID_t key, const TID_t tid, const bool p
 
 SVCacheEntry* Cache::peek(const OID_t key, const TID_t tid)
 {
+    BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
+
     return _get_or_peek(key, tid, true);
 }
 
 SVCacheEntry* Cache::get(const OID_t key, const TID_t tid)
 {
+    BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
     return _get_or_peek(key, tid, false);
 }
 
 void Cache::age_frequencies()
 {
+    BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
+
     OidEntryMap::iterator end = this->data.end();
     for (OidEntryMap::iterator it = this->data.begin(); it != end; it++) {
         it->frequency = it->frequency / 2;

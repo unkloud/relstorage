@@ -430,3 +430,16 @@ like::
   epop    : Mean +- std dev: 175   ms +- 3 ms
   read    : Mean +- std dev:  10.3 ms +- 0.5 ms
   mix     : Mean +- std dev: 368   ms +- 9 ms
+
+Interprocess Recursive Mutex
+----------------------------
+
+Adding a ``interprocess_recursive_mutex`` that is never contended
+results in these timings::
+
+  pop_bulk: Mean +- std dev:  49.1  ms +- 1.2 ms
+  pop_eq  : Mean +- std dev: 202    ms +- 3 ms
+  pop_ne  : Mean +- std dev: 360    ms +- 6 ms
+  epop    : Mean +- std dev: 171    ms +- 3 ms
+  read    : Mean +- std dev:   9.88 ms +- 0.28 ms
+  mix     : Mean +- std dev: 340    ms +- 12 ms

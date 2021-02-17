@@ -78,7 +78,7 @@ typedef unsigned int uint32_t;
 #include <boost/interprocess/shared_memory_object.hpp>
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/interprocess/managed_shared_memory.hpp>
-#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/interprocess/sync/interprocess_recursive_mutex.hpp>
 #include <boost/interprocess/sync/scoped_lock.hpp>
 
 /*
@@ -123,6 +123,7 @@ extern "C" {
 namespace relstorage {
 namespace cache {
     namespace BIT = boost::intrusive;
+    namespace BIP = boost::interprocess;
 
     typedef int64_t TID_t;
     // OIDs start at zero and go up from there. We use
@@ -1171,6 +1172,8 @@ namespace cache {
         // in the class definition), followed by the destructors of
         // the object's base classes (in reverse order of their
         // appearance in the class definition)."
+        BIP::interprocess_recursive_mutex mutex;
+
         OidEntryMap data;
         OidList rejects;
 
@@ -1254,6 +1257,8 @@ namespace cache {
 
         RSR_INLINE int will_fit(const ICacheEntry& entry)
         {
+            BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
+
             return this->ring_eden.will_fit(entry)
                 || this->ring_probation.will_fit(entry)
                 || this->ring_protected.will_fit(entry);
@@ -1307,8 +1312,11 @@ namespace cache {
         SVCacheEntry* get(const OID_t key, const TID_t tid);
 
         void age_frequencies();
+
         size_t size()
         {
+            BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
+
             // The lists have constant time size(), the map
             // does not. The assert doesn't get used when we compile with
             // -DNDEBUG
