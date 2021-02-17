@@ -406,3 +406,27 @@ web12             100   95.36    2.00 0.856
 web12             512  366.35    1.77 0.891
 web12            1024  366.35    1.77 0.891
 ==============  ===== ======= ======= =====
+
+Before Shared Memory
+====================
+
+Before moving to shared memory, I took some fresh benchmarks with just
+the local cache: commit eb1b5e23ecf832aeeb2ec2febec46658758560e8 and
+Python 3.8.7, macOS 10.15. Default settings::
+
+  pop_bulk: Mean +- std dev:  43.4 ms +- 1.0 ms
+  pop_eq  : Mean +- std dev: 162   ms +- 6 ms
+  pop_ne  : Mean +- std dev: 278   ms +- 15 ms
+  epop    : Mean +- std dev: 159   ms +- 4 ms
+
+The 'read' test was taking over four hours to do just 16 main
+iterations. (Reporting a hit ratio of 0.5591147132169576.) Turning it
+way down (with options  -p3 --values 3 -l 10), the entire run looks
+like::
+
+  pop_bulk: Mean +- std dev:  47.2 ms +- 0.9 ms
+  pop_eq  : Mean +- std dev: 210   ms +- 6 ms
+  pop_ne  : Mean +- std dev: 364   ms +- 14 ms
+  epop    : Mean +- std dev: 175   ms +- 3 ms
+  read    : Mean +- std dev:  10.3 ms +- 0.5 ms
+  mix     : Mean +- std dev: 368   ms +- 9 ms
