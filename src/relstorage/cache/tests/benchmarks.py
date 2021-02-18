@@ -366,7 +366,9 @@ def local_benchmark(runner):
         # print("Probation demotes", client._bucket0._probation.demote_count)
         # print("Probation removes", client._bucket0._probation.remove_count)
 
-    def _do_contended(loops, func, div=False, thread_count=5):
+    def _do_contended(loops, func, div=False, thread_count=5, args=()):
+        # Even in the single threaded case (thread_count=1) always use
+        # a background thread to be sure the GIL is initialized.
         import threading
 
 
@@ -376,7 +378,7 @@ def local_benchmark(runner):
         class Thread(threading.Thread):
             duration = None
             def run(self):
-                self.duration = func(loops, (client, key_groups))
+                self.duration = func(loops, (client, key_groups), *args)
 
         threads = [Thread() for _ in range(thread_count)]
         for t in threads:
@@ -440,74 +442,21 @@ def local_benchmark(runner):
     def mixed_contended(loops):
         return _do_contended(loops, mixed)
 
-    def _test_lock_nogil(loops, client_and_keys=None):
+    def _test_cache_method(loops, client_and_keys=None, methname=None):
         if client_and_keys is None:
             client = makeOne(populate=True)
         else:
             client, _ = client_and_keys
 
         cache = client._cache
+        meth = getattr(cache, methname)
         duration = 0
         for _ in range(loops):
             begin = perf_counter()
             for _ in range(10000):
-                cache.test_lock_nogil()
+                meth()
             duration += perf_counter() - begin
         return duration
-
-    def _test_lock_gil(loops, client_and_keys=None):
-        if client_and_keys is None:
-            client = makeOne(populate=True)
-        else:
-            client, _ = client_and_keys
-
-        cache = client._cache
-        duration = 0
-        for _ in range(loops):
-            begin = perf_counter()
-            for _ in range(10000):
-                cache.test_lock_gil()
-            duration += perf_counter() - begin
-        return duration
-
-
-    def lock_nogil_cont(loops):
-        return _do_contended(loops, _test_lock_nogil, True)
-
-    def lock_gil_cont(loops):
-        return _do_contended(loops, _test_lock_gil, True)
-
-    def lock_nogil_cont4(loops):
-        return _do_contended(loops, _test_lock_nogil, True, 4)
-
-    def lock_gil_cont4(loops):
-        return _do_contended(loops, _test_lock_gil, True, 4)
-
-    def lock_nogil_cont3(loops):
-        return _do_contended(loops, _test_lock_nogil, True, 3)
-
-    def lock_gil_cont3(loops):
-        return _do_contended(loops, _test_lock_gil, True, 3)
-
-    def lock_nogil_cont2(loops):
-        return _do_contended(loops, _test_lock_nogil, True, 2)
-
-    def lock_gil_cont2(loops):
-        return _do_contended(loops, _test_lock_gil, True, 2)
-
-
-    def lock_nogil(loops):
-        # Be sure we actually have a real GIL by spawning a thread.
-        import threading
-        t = threading.Thread(target=lambda: 42)
-        t.start()
-        t.join()
-
-        return _test_lock_nogil(loops)
-
-    def lock_gil(loops):
-        return _test_lock_gil(loops)
-
 
     # def mixed_for_stats():
     #     # This is a trivial function that simulates the way
@@ -528,24 +477,27 @@ def local_benchmark(runner):
 
     groups = {}
     for name in ('',):
+        gil_funcs = ()
+        for i in range(1, 6):
+            for meth in (
+                    'trivial_nogil',
+                    'trivial_gil',
+                    'lock_nogil',
+                    'lock_gil',
+            ):
+                gil_funcs += ((
+                    name + ' ' + meth + str(i),
+                    _do_contended,
+                    _test_cache_method,
+                    True,
+                    i,
+                    ('test_' + meth,) # func *args
+                ),)
+
+
         benchmarks = run_and_report_funcs(
             runner,
             (
-                (name + ' lock_nogil', lock_nogil),
-                (name + ' lock_gil', lock_gil),
-                (name + ' lock_nogil_cont5', lock_nogil_cont),
-                (name + ' lock_gil_cont5', lock_gil_cont),
-
-                (name + ' lock_nogil_cont4', lock_nogil_cont4),
-                (name + ' lock_gil_cont4', lock_gil_cont4),
-
-                (name + ' lock_nogil_cont3', lock_nogil_cont3),
-                (name + ' lock_gil_cont3', lock_gil_cont3),
-
-                (name + ' lock_nogil_cont2', lock_nogil_cont2),
-                (name + ' lock_gil_cont2', lock_gil_cont2),
-
-
                 # (name + ' mix_cont ', mixed_contended),
                 # (name + ' read_cont', read_contended),
                 # (name + ' pop_bulk', populate_bulk),
@@ -555,7 +507,9 @@ def local_benchmark(runner):
                 # (name + ' read', read),
                 # (name + ' mix ', mixed),
 
-            ))
+            )
+            + gil_funcs
+        )
         group = {
             k[len(name) + 1:]: v for k, v in benchmarks.items()
         }

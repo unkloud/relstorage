@@ -111,7 +111,8 @@ cdef extern from "c_cache.h" namespace "relstorage::cache":
         iterator end()
 
         void test_lock() nogil
-        void test_non_recur_lock() nogil
+        void test_trivial() nogil
+
 
 
 # Local Variables:

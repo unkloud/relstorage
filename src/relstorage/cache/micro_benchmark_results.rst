@@ -516,3 +516,105 @@ ratio and absolute times as 3.8::
          3          44          14   (55.7ms/4.0ms)      41
          4          67          19   (110ms/5.5ms)       67
          5         110          29   (193ms/6.6ms)      108
+
+Adding tests that do nothing but call a trivial constant-time
+function. Here's the raw data for Python 3.9::
+
+  trivial_nogil1: Mean +- std dev: 1.09 ms +- 0.07 ms
+  trivial_gil1  : Mean +- std dev: 362 us +- 27 us
+  lock_nogil1   : Mean +- std dev: 1.31 ms +- 0.08 ms
+  lock_gil1     : Mean +- std dev: 565 us +- 47 us
+  trivial_nogil2: Mean +- std dev: 7.31 ms +- 0.90 ms
+  trivial_gil2  : Mean +- std dev: 651 us +- 41 us
+  lock_nogil2   : Mean +- std dev: 10.4 ms +- 0.7 ms
+  lock_gil2     : Mean +- std dev: 1.10 ms +- 0.10 ms
+  trivial_nogil3: Mean +- std dev: 55.5 ms +- 3.2 ms
+  trivial_gil3  : Mean +- std dev: 817 us +- 54 us
+  lock_nogil3   : Mean +- std dev: 69.8 ms +- 2.8 ms
+  lock_gil3     : Mean +- std dev: 1.50 ms +- 0.12 ms
+  trivial_nogil4: Mean +- std dev: 104 ms +- 4 ms
+  trivial_gil4  : Mean +- std dev: 1.01 ms +- 0.10 ms
+  lock_nogil4   : Mean +- std dev: 122 ms +- 5 ms
+  lock_gil4     : Mean +- std dev: 1.74 ms +- 0.26 ms
+  trivial_nogil5: Mean +- std dev: 207 ms +- 8 ms
+  trivial_gil5  : Mean +- std dev: 1.13 ms +- 0.14 ms
+  lock_nogil5   : Mean +- std dev: 220 ms +- 6 ms
+  lock_gil5     : Mean +- std dev: 2.28 ms +- 0.22 ms
+
+Here's the slowdown factor between dropping the GIL and not dropping
+it. You can see that the trivial function scales very badly,
+indicating that acquiring/releasing the GIL is quite expensive,
+relatively speaking. The more expensive lock acquisition comes out
+looking relatively well.
+
++------------+--------+-----+
+| Concurrency| Trivial| Lock|
+|            |        |     |
++============+========+=====+
+| 1          | 3.01   | 2.31|
++------------+--------+-----+
+|2           | 11.22  | 9.45|
++------------+--------+-----+
+|3           | 67.9   | 46.5|
++------------+--------+-----+
+|4           | 102.9  | 70.1|
++------------+--------+-----+
+|5           | 183.2  | 96.5|
++------------+--------+-----+
+
+Now we can look at the factor differences between the trivial and lock
+cases to determine the relative expense of acquiring the lock. This
+table shows the factor by which acquiring the lock is more expensive
+than the trivial function.
+
++-----------+------+-----+
+|Concurrency| nogil| gil |
++-----------+------+-----+
+|1          | 1.2  | 1.6 |
++-----------+------+-----+
+|2          | 1.4  | 1.7 |
++-----------+------+-----+
+|3          | 1.3  | 1.8 |
++-----------+------+-----+
+|4          | 1.2  | 1.7 |
++-----------+------+-----+
+|5          | 1.1  | 2.0 |
++-----------+------+-----+
+
+Here's the raw data for Python 2.7::
+
+  trivial_nogil1: Mean +- std dev: 944 us +- 38 us
+  trivial_gil1  : Mean +- std dev: 485 us +- 11 us
+  lock_nogil1   : Mean +- std dev: 1.16 ms +- 0.03 ms
+  lock_gil1     : Mean +- std dev: 680 us +- 15 us
+  trivial_nogil2: Mean +- std dev: 6.71 ms +- 1.09 ms
+  trivial_gil2  : Mean +- std dev: 1.40 ms +- 0.08 ms
+  lock_nogil2   : Mean +- std dev: 8.35 ms +- 1.18 ms
+  lock_gil2     : Mean +- std dev: 1.84 ms +- 0.13 ms
+  trivial_nogil3: Mean +- std dev: 40.0 ms +- 1.8 ms
+  trivial_gil3  : Mean +- std dev: 3.70 ms +- 0.26 ms
+  lock_nogil3   : Mean +- std dev: 45.5 ms +- 1.9 ms
+  lock_gil3     : Mean +- std dev: 2.98 ms +- 0.17 ms
+  trivial_nogil4: Mean +- std dev: 82.0 ms +- 4.8 ms
+  trivial_gil4  : Mean +- std dev: 4.97 ms +- 0.38 ms
+  lock_nogil4   : Mean +- std dev: 87.0 ms +- 4.9 ms
+  lock_gil4     : Mean +- std dev: 3.85 ms +- 0.20 ms
+  trivial_nogil5: Mean +- std dev: 163 ms +- 9 ms
+  trivial_gil5  : Mean +- std dev: 6.34 ms +- 0.29 ms
+  lock_nogil5   : Mean +- std dev: 173 ms +- 6 ms
+  lock_gil5     : Mean +- std dev: 4.69 ms +- 0.24 ms
+
+It shows roughly the same pattern, albeit more so: the GIL is less
+expensive. Interestingly, for reasons I can't explain, starting with
+concurrency 4, the locked versions are *cheaper* than the trivial
+versions. I *think* that might mean that the GIL scales non-linearly
+on Python 2?
+
+Tentative conclusion: locking isn't all that expensive, especially
+compared to the GIL. We should only drop the GIL when we have a lot of
+work to do. However, because multiple processes are involved, and
+there are no fairness guarantees around the lock, we should probably
+drop it before acquiring the lock; so we need to do more work in C++.
+
+.. note:: This applies only to a single process. I cannot yet
+          benchmark acquiring the same lock across processes.

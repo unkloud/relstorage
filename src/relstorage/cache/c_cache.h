@@ -1175,7 +1175,6 @@ namespace cache {
         // the object's base classes (in reverse order of their
         // appearance in the class definition)."
         BIP::interprocess_recursive_mutex mutex;
-        BIP::interprocess_recursive_mutex non_recur_mutex;
 
         OidEntryMap data;
         OidList rejects;
@@ -1255,9 +1254,9 @@ namespace cache {
             BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->mutex);
         }
 
-        void test_non_recur_lock()
+        void test_trivial()
         {
-            BIP::scoped_lock<BIP::interprocess_recursive_mutex> lock(this->non_recur_mutex);
+            ring_eden.size(); // constant time
         }
 
 

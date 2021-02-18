@@ -375,8 +375,7 @@ cdef class PyCache:
     cpdef get_item_with_tid(self, OID_t key, tid):
         cdef TID_t native_tid = -1 if tid is None else tid
         cdef SVCacheEntry* cvalue = NULL
-        with nogil:
-            cvalue = self.cache.get(key, native_tid)
+        cvalue = self.cache.get(key, native_tid)
 
         if cvalue:
             self.hits += 1
@@ -392,12 +391,11 @@ cdef class PyCache:
         cdef object b_state = state if state is not None else b''
         cdef ProposedCacheEntry proposed = ProposedCacheEntry(key, tid, b_state)
         try:
-            with nogil:
-                if not self.cache.contains(key): # the long way to avoid type conversion
-                    self.cache.add_to_eden(proposed)
-                else:
-                    # We need to merge values.
-                    self.cache.store_and_make_MRU(proposed)
+            if not self.cache.contains(key): # the long way to avoid type conversion
+                self.cache.add_to_eden(proposed)
+            else:
+                # We need to merge values.
+                self.cache.store_and_make_MRU(proposed)
         except RuntimeError as e:
             raise CacheConsistencyError(str(e))
 
@@ -501,8 +499,7 @@ cdef class PyCache:
         # We're done with ordered_keys, free its memory
         ordered_keys = None
 
-        with nogil:
-            added_oids = self.cache.add_many(filler)
+        added_oids = self.cache.add_many(filler)
 
         # Things that didn't get added have -1 for their generation.
         if return_count_only:
@@ -513,8 +510,7 @@ cdef class PyCache:
         return result
 
     def age_frequencies(self):
-        with nogil:
-            self.cache.age_frequencies()
+        self.cache.age_frequencies()
 
     def delitems(self, oids_tids):
         """
@@ -546,16 +542,22 @@ cdef class PyCache:
     @property
     def weight(self):
         cdef size_t result = 0
-        with nogil:
-            result = self.cache.weight()
+        result = self.cache.weight()
         return result
 
     def test_lock_nogil(self):
         with nogil:
-            self.cache.test_non_recur_lock()
+            self.cache.test_lock()
 
     def test_lock_gil(self):
-        self.cache.test_non_recur_lock()
+        self.cache.test_lock()
+
+    def test_trivial_nogil(self):
+        with nogil:
+            self.cache.test_trivial()
+
+    def test_trivial_gil(self):
+        self.cache.test_trivial()
 
 
 # Local Variables:
