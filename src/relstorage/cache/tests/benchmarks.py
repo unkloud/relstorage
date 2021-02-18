@@ -494,21 +494,20 @@ def local_benchmark(runner):
                     ('test_' + meth,) # func *args
                 ),)
 
+        cache_funcs = (
+            (name + ' mix_cont ', mixed_contended),
+            (name + ' read_cont', read_contended),
+            (name + ' pop_bulk', populate_bulk),
+            (name + ' pop_eq', populate_equal),
+            (name + ' pop_ne', populate_not_equal),
+            (name + ' epop', populate_empty),
+            (name + ' read', read),
+            (name + ' mix ', mixed),
+        )
 
         benchmarks = run_and_report_funcs(
             runner,
-            (
-                # (name + ' mix_cont ', mixed_contended),
-                # (name + ' read_cont', read_contended),
-                # (name + ' pop_bulk', populate_bulk),
-                # (name + ' pop_eq', populate_equal),
-                # (name + ' pop_ne', populate_not_equal),
-                # (name + ' epop', populate_empty),
-                # (name + ' read', read),
-                # (name + ' mix ', mixed),
-
-            )
-            + gil_funcs
+            cache_funcs #+ gil_funcs
         )
         group = {
             k[len(name) + 1:]: v for k, v in benchmarks.items()

@@ -99,14 +99,21 @@ extern "C" {
 #if defined(PYPY_VERSION) && !defined(RS_REF_STRING)
   // Under PyPy, we don't want to keep PyObject* around.
   // They have overhead and prevent the GC from doing certain
-  // things. Better to copy the object data to std::string.
+  // things (e.g., compacting). Better to copy the object data to std::string.
   #define RS_COPY_STRING 1
   typedef std::string rs_string;
 #else
   // On CPython, it's OK to keep PyObject* around for a long time,
   // as long as they are actually bytes objects.
   // They don't interact with the GC, and we avoid copies.
-  typedef PyObject* rs_string;
+  // However, that doesn't work with shared memory, as
+  // the object contains pointers to structures that are found in the original
+  // host, notably the type. I *think* that this should all be fine
+  // as, like with vtables in C++ objects, we rely on certain things being the same
+  // and only work with a family of forked processes. However, we have no
+  // way to "move" the object into shared memory without coping anyway.
+  #define RS_COPY_STRING 1
+  typedef std::string rs_string;
 #endif
 
 // likely/unlikely to help the optimizer. Taken from Cython.

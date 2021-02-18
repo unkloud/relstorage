@@ -2,6 +2,8 @@
  Benchmark Results
 ===================
 
+.. contents::
+
 Local Client Tests
 ==================
 
@@ -618,3 +620,37 @@ drop it before acquiring the lock; so we need to do more work in C++.
 
 .. note:: This applies only to a single process. I cannot yet
           benchmark acquiring the same lock across processes.
+
+Copying The Strings
+-------------------
+
+Adding copying of bytes -> std::string, necessary for proper storage,
+slows things down (this is a 3.8 vs 3.9 benchmark, but that shouldn't
+make much difference). I *think* we can probably workaround a lot of
+this, at least on the read side --- which is where we take the biggest
+hit.
+
+.. important:: I'm recording this as a reminder to go back and revisit
+               this.
+
++----------------+------------------------+-------------------------+
+| Benchmark      | unmod_local_short_cont | 39_copy_to_std_string   |
++================+========================+=========================+
+| pop_bulk       | 43.7 ms                | 86.9 ms: 1.99x slower   |
++----------------+------------------------+-------------------------+
+| pop_eq         | 183 ms                 | 251 ms: 1.37x slower    |
++----------------+------------------------+-------------------------+
+| pop_ne         | 357 ms                 | 362 ms: 1.01x slower    |
++----------------+------------------------+-------------------------+
+| epop           | 163 ms                 | 254 ms: 1.56x slower    |
++----------------+------------------------+-------------------------+
+| read           | 9.43 ms                | 138 ms: 14.65x slower   |
++----------------+------------------------+-------------------------+
+| read_cont      | 198 ms                 | 3.22 sec: 16.31x slower |
++----------------+------------------------+-------------------------+
+| mix            | 326 ms                 | 375 ms: 1.15x slower    |
++----------------+------------------------+-------------------------+
+| mix_cont       | 8.62 sec               | 10.9 sec: 1.27x slower  |
++----------------+------------------------+-------------------------+
+| Geometric mean | (ref)                  | 2.50x slower            |
++----------------+------------------------+-------------------------+
